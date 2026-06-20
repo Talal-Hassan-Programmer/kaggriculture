@@ -30,6 +30,17 @@ from filters import budget_filter, profit_ranker
 
 load_dotenv()
 
+
+def _strip_fence(text: str) -> str:
+    """Strips a leading/trailing ```json or ``` fence if present, so
+    json.loads doesn't choke on grounded responses that ignore the
+    'no markdown fences' instruction."""
+    t = text.strip()
+    if t.startswith("```"):
+        t = t.split("\n", 1)[-1]
+        t = t.rsplit("```", 1)[0]
+    return t.strip()
+
 # orchestrator_agent has NO tools and is handed already-computed numbers.
 # Its only job is to turn a ranked list of crop dicts into a short written
 # recommendation. The instruction explicitly forbids recalculating or
@@ -152,7 +163,7 @@ async def _run_core_pipeline(
         )
 
         try:
-            parsed = json.loads(raw_text)
+            parsed = json.loads(_strip_fence(raw_text))
         except json.JSONDecodeError as exc:
             error_feedback = f"Response was not valid JSON: {exc}"
             continue
@@ -255,6 +266,15 @@ async def run_pipeline_from_query(query: str, max_retries: int = 2) -> dict:
         }
 
     fields = intake_result["fields"]
+    required = ("location", "budget", "land_area", "target_profit")
+    if not fields or not all(k in fields and fields[k] is not None for k in required):
+        return {
+            "feasible": False,
+            "rejected": False,
+            "incomplete": True,
+            "reason": "intake agent returned ALLOW but fields were missing or incomplete",
+        }
+
     return await _run_core_pipeline(
         location=fields["location"],
         budget=fields["budget"],
