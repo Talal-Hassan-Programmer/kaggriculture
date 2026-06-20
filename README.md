@@ -56,7 +56,7 @@ input_guard_agent (LLM)            intake_agent (LLM)
 
 **Why two guard agents and not one?** They protect different attack surfaces. `input_guard_agent` only has to validate already-structured fields. `intake_agent` has to parse untrusted free text into those same fields *and* validate it in the same pass — so it's a separate agent with a separate, stricter prompt, not a shared one stretched to do both jobs.
 
-![Guard agent security pattern](docs\diagrams\kaggriculture_guard_pattern_two_agents.svg)
+![Guard agent security pattern](docs/diagrams/kaggriculture_guard_pattern_two_agents.svg)
 
 ## Course Concepts Demonstrated
 
