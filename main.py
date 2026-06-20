@@ -1,15 +1,28 @@
-import os
+import asyncio
+import json
 
-from dotenv import load_dotenv
-from google import genai
+from agents.orchestrator import run_pipeline
 
-load_dotenv()
 
-client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+async def _main() -> None:
+    print("=" * 60)
+    print("CASE A: valid location")
+    print("=" * 60)
+    valid_result = await run_pipeline(
+        location="Al Rayyan, Qatar",
+        budget=500000,
+        land_area=10,
+        target_profit=10000,
+        rent_cost=0,
+    )
 
-response = client.models.generate_content(
-    model="gemini-3.5-flash",
-    contents="Say hello in one short sentence.",
-)
+    print("Raw crops returned by research_agent (before budget_filter):")
+    print(json.dumps(valid_result.get("raw_crops"), indent=2))
 
-print(response.text)
+    print()
+    print("Full result:")
+    print(json.dumps(valid_result, indent=2))
+
+
+if __name__ == "__main__":
+    asyncio.run(_main())

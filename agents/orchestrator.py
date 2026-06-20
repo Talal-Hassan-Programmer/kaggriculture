@@ -146,7 +146,11 @@ async def run_pipeline(
 
     filtered = budget_filter(crops, budget, land_area, rent_cost)
     if not filtered:
-        return {"feasible": False, "error": "no crops fit this budget"}
+        return {
+            "feasible": False,
+            "error": "no crops fit this budget",
+            "raw_crops": crops,
+        }
 
     ranked = profit_ranker(filtered, land_area, rent_cost)
 
@@ -157,6 +161,7 @@ async def run_pipeline(
 
     return {
         "feasible": True,
+        "raw_crops": crops,
         "ranked_crops": ranked,
         "summary": summary,
         "retries_used": retries_used,
