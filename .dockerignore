@@ -1,0 +1,8 @@
+.venv
+.env
+.git
+.adk
+agents/.adk
+__pycache__
+*.pyc
+adk_demo
