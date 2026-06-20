@@ -13,7 +13,7 @@ Smallholder and first-time farmers can't always afford an agronomist or market c
 Kaggriculture takes a farmer's budget, land area, location, and target profit, researches real current crop options and prices for that region, filters out anything unaffordable, ranks the rest by ROI, and returns a recommendation with the numbers shown — not just "grow tomatoes," but exactly why.
 
 **Two ways in:**
-- Structured input (location, budget, land area, target profit, optional rent + planting month)
+- Structured input (location, budget, land area, target profit, optional rent cost)
 - Free text ("I want to grow something profitable in Qatar") — a dedicated agent extracts the structured fields, or asks for what's missing rather than guessing
 
 ## Architecture
@@ -52,25 +52,27 @@ input_guard_agent (LLM)            intake_agent (LLM)
               Ranked crop list + top recommendation
 ```
 
-<!-- DIAGRAM: pipeline architecture -->
-<!-- DIAGRAM: guard security pattern -->
-<!-- DIAGRAM: MCP integration -->
+![Pipeline architecture](docs/diagrams/kaggriculture_pipeline_architecture.svg)
 
 **Why two guard agents and not one?** They protect different attack surfaces. `input_guard_agent` only has to validate already-structured fields. `intake_agent` has to parse untrusted free text into those same fields *and* validate it in the same pass — so it's a separate agent with a separate, stricter prompt, not a shared one stretched to do both jobs.
+
+![Guard agent security pattern](docs/diagrams/kaggriculture_guard_security_pattern.svg)
 
 ## Course Concepts Demonstrated
 
 | Concept | Where |
 |---|---|
 | Multi-agent system (ADK) | 4 distinct `LlmAgent`s — `input_guard_agent`, `intake_agent`, `research_agent`, `orchestrator_agent` — each single-purpose, wired through one shared core pipeline |
-| Security | LLM firewall pattern (Day 4): every entry point is gated by a guard agent before any other agent runs. Verified against a deliberate prompt-injection input (rejected, no downstream calls) and a real external MCP client test where `intake_agent` refused to guess missing budget figures |
-| MCP Server | `mcp_server.py` (FastMCP) — two tools, `get_farm_recommendation` and `get_farm_recommendation_from_text`, served over both local stdio and remote `streamable-http` |
+| Security | LLM firewall pattern (Day 4): every entry point is gated by a guard agent before any other agent runs. Verified against a deliberate prompt-injection input (rejected before `research_agent`/`orchestrator_agent` ever run) and an incomplete query, where `intake_agent` asked a follow-up question instead of guessing the missing budget/land area/target profit |
+| MCP Server | `mcp_server.py` (FastMCP) — two tools, `get_farm_recommendation` and `get_farm_recommendation_from_text`, served over `streamable-http` (locally and as the deployed remote MCP service) |
 | Deployability | Two independent Cloud Run services — REST API and remote MCP — both live |
 
 ## Try It Live
 
 - **REST API:** https://kaggriculture-90024527103.us-central1.run.app (`/docs` for Swagger UI)
 - **Remote MCP:** https://kaggriculture-mcp-90024527103.us-central1.run.app/mcp — add as a Custom Connector in Claude Desktop, no local setup needed
+
+![MCP integration](docs/diagrams/kaggriculture_mcp_integration.svg)
 
 ## Inputs / Output
 
@@ -80,8 +82,7 @@ input_guard_agent (LLM)            intake_agent (LLM)
 | Budget | Yes | Total capital, in local currency |
 | Land area | Yes | In whatever unit is natural for the region |
 | Target profit | Yes | Minimum acceptable return, same currency as budget |
-| Planting month | No | 1–12 or month name; defaults to current month. Month, not season — seasons are hemisphere-dependent |
-| Rent cost | No | Only if land is rented |
+| Rent cost | No | Only if land is rented; defaults to 0 |
 
 **Output:** every crop that survives the budget filter, ranked by profit margin, plus a top recommendation with the full cost/profit breakdown.
 
@@ -109,17 +110,17 @@ cp .env.example .env             # add your GEMINI_API_KEY
 python main.py                   # single structured run
 python main.py --interactive     # free-text, multi-round fill-in
 uvicorn app:app --reload         # REST API on localhost:8000
-python mcp_server.py             # MCP server, stdio transport
+python mcp_server.py             # MCP server, streamable-http on 0.0.0.0:$PORT (default 8080)
 ```
 
 ## Project Structure
 
 ```
 kaggriculture/
-├── main.py                  # CLI entry point, --interactive mode
-├── filters.py                # budget_filter(), profit_ranker() — pure Python
-├── app.py                    # FastAPI REST API
-├── mcp_server.py              # FastMCP server (stdio + streamable-http)
+├── main.py                    # CLI entry point, --interactive mode
+├── filters.py                 # budget_filter(), profit_ranker() — pure Python
+├── app.py                     # FastAPI REST API
+├── mcp_server.py              # FastMCP server, streamable-http transport
 ├── search_tool.py             # Step 2 standalone verification script (not used in production)
 ├── agents/
 │   ├── input_guard_agent.py   # LLM firewall — structured entry point
@@ -127,7 +128,9 @@ kaggriculture/
 │   ├── research_agent.py      # ADK LlmAgent + google_search tool
 │   └── orchestrator.py        # synthesizes recommendation, retry loop
 ├── adk_demo/                  # isolated single-agent demo apps (for `adk web`)
-├── Dockerfile
+├── docs/diagrams/             # architecture diagrams embedded above
+├── Dockerfile                 # REST API service (app.py)
+├── Dockerfile.mcp             # MCP service (mcp_server.py) — separate Cloud Run deploy
 ├── requirements.txt
 └── .env.example
 ```
