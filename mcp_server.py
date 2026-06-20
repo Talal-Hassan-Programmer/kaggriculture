@@ -3,11 +3,13 @@
 # directly. Like app.py, holds no pipeline logic of its own — each tool is
 # a thin wrapper that delegates to run_pipeline() or run_pipeline_from_query().
 
+import os
+
 from mcp.server.fastmcp import FastMCP
 
 from agents.orchestrator import run_pipeline, run_pipeline_from_query
 
-mcp = FastMCP("kaggriculture")
+mcp = FastMCP("kaggriculture", host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
 
 
 @mcp.tool()
@@ -84,4 +86,4 @@ async def get_farm_recommendation_from_text(query: str) -> dict:
 
 
 if __name__ == "__main__":
-    mcp.run()
+    mcp.run(transport="streamable-http")
