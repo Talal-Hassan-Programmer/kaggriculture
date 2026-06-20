@@ -1,3 +1,10 @@
+# Single responsibility: security-only classification of a single location
+# string for the STRUCTURED entry point. Only called by run_pipeline() (via
+# check_input()), as the guard before research_agent/orchestrator_agent run.
+# Never called by run_pipeline_from_query() — that path uses intake_agent's
+# combined security+extraction check instead, so calling this guard too
+# would just be a redundant API call against the same already-checked text.
+
 import asyncio
 import json
 
@@ -58,6 +65,10 @@ async def check_input(location: str) -> dict:
 
 
 async def _main() -> None:
+    """Manual smoke test: runs check_input() against one clean location,
+    one minimal-but-valid location, and one prompt-injection attempt, so
+    the ALLOW/REJECT boundary can be verified directly (3 API calls total)
+    without going through the rest of the pipeline."""
     test_cases = [
         "Al Rayyan, Qatar",
         "Qatar",

@@ -1,3 +1,10 @@
+# Single responsibility: research real-world crop economics for a region.
+# This is the ONLY agent in the project that does live research (via the
+# google_search tool) — every other agent reasons purely over text or
+# numbers it's handed. Called exclusively from agents/orchestrator.py's
+# _run_core_pipeline(), which both run_pipeline() and run_pipeline_from_query()
+# go through; never called directly from app.py or mcp_server.py.
+
 import asyncio
 
 from dotenv import load_dotenv
@@ -53,6 +60,11 @@ research_agent = LlmAgent(
 
 
 async def _main() -> None:
+    """Manual smoke test: runs research_agent standalone against a real
+    location and prints the raw response, so this agent's prompt/tool
+    wiring can be checked in isolation without going through the full
+    pipeline (and without spending a research_agent + orchestrator_agent
+    call pair just to verify the search grounding works)."""
     runner = InMemoryRunner(agent=research_agent)
     await runner.run_debug("Al Rayyan, Qatar")
 

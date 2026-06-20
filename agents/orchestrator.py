@@ -1,3 +1,14 @@
+# Single responsibility: own the actual pipeline (research -> filter -> rank
+# -> synthesize) and expose it through two public entry points that differ
+# only in how they handle untrusted input:
+#   - run_pipeline(): structured args, guarded by input_guard_agent.
+#   - run_pipeline_from_query(): free-text, guarded by intake_agent instead.
+# Both entry points delegate the actual work to the shared, unguarded
+# _run_core_pipeline(), so the retry/filter/rank/synthesize logic exists in
+# exactly one place. This module is called by app.py (the FastAPI service)
+# and mcp_server.py (the MCP tools) — it has no callers of its own besides
+# main.py's manual test/demo entry points.
+
 import asyncio
 import json
 import sys
@@ -54,7 +65,15 @@ REQUIRED_CROP_FIELDS = {
 
 def validate_crops(data) -> bool:
     """Checks data is a list of dicts, each with all 6 required keys and
-    correct types. Returns False on anything malformed, never raises."""
+    correct types. Returns False on anything malformed, never raises.
+
+    Used as the gate in _run_core_pipeline()'s retry loop: research_agent's
+    output is an LLM response, so it can come back as non-JSON or with the
+    wrong shape. This function is what decides "good enough to use" vs.
+    "ask the model to try again," so it has to be strict and exception-free
+    — a raised error here would crash the pipeline instead of triggering
+    a retry.
+    """
     if not isinstance(data, list) or not data:
         return False
 
@@ -93,6 +112,16 @@ async def _run_core_pipeline(
     rent_cost: float = 0,
     max_retries: int = 2,
 ) -> dict:
+    """Runs research_agent (with retries) -> budget_filter -> profit_ranker
+    -> orchestrator_agent, and returns the final feasibility result.
+
+    NO security/guard agent runs here — by design. This function assumes
+    `location` has already been vetted by whichever guard the caller used
+    (input_guard_agent via run_pipeline(), or intake_agent via
+    run_pipeline_from_query()). It exists purely so that retry/filter/rank/
+    synthesize logic lives in one place regardless of which guard ran
+    upstream; it is never called directly from outside this module.
+    """
     # Fail fast on invalid input before spending any API calls — land_area
     # feeds directly into budget_filter/profit_ranker's arithmetic, so a
     # non-positive value is never recoverable downstream. Lives here (rather
@@ -178,6 +207,15 @@ async def run_pipeline(
     rent_cost: float = 0,
     max_retries: int = 2,
 ) -> dict:
+    """Entry point for STRUCTURED input (caller already knows location,
+    budget, land_area, target_profit, rent_cost as separate values — e.g.
+    app.py's /recommend endpoint or mcp_server.py's get_farm_recommendation).
+
+    Guard: input_guard_agent (via check_input()), since `location` here is
+    untrusted free text even though the other fields are structured numbers.
+    This is the only guard used on this path — see run_pipeline_from_query()
+    for why the free-text path uses a different guard instead of this one.
+    """
     # Run the input guard before anything else costs an API call. research_agent
     # and orchestrator_agent are both paid LLM calls; if `location` is rejected
     # here, we return immediately and never spend quota on either of them.
@@ -191,15 +229,20 @@ async def run_pipeline(
 
 
 async def run_pipeline_from_query(query: str, max_retries: int = 2) -> dict:
-    """Single-shot wrapper around _run_core_pipeline() that accepts a
-    free-text query instead of pre-parsed fields. Calls parse_query() exactly
-    once — any back-and-forth needed to fill in missing fields belongs in the
-    caller (e.g. a CLI loop), not here.
+    """Entry point for FREE-TEXT input (caller only has a single
+    unstructured string — e.g. app.py's /recommend/text endpoint or
+    mcp_server.py's get_farm_recommendation_from_text).
 
-    Calls _run_core_pipeline() directly rather than run_pipeline(), skipping
-    input_guard_agent entirely — intake_agent already performed the same
-    security check on this free-text path, so running input_guard_agent too
-    would be a redundant API call against the same untrusted text.
+    Guard: intake_agent (via parse_query()), NOT input_guard_agent.
+    intake_agent does the same security classification input_guard_agent
+    would do, plus field extraction, in one call — so this function calls
+    _run_core_pipeline() directly instead of going through run_pipeline(),
+    deliberately skipping input_guard_agent to avoid a second, redundant
+    security check of the same already-vetted text.
+
+    Single-shot: calls parse_query() exactly once. Any back-and-forth needed
+    to fill in missing fields (an INCOMPLETE verdict) belongs in the caller
+    (e.g. main.py's run_interactive() loop), not here.
     """
     intake_result = await parse_query(query)
 
@@ -223,10 +266,16 @@ async def run_pipeline_from_query(query: str, max_retries: int = 2) -> dict:
 
 
 async def _main() -> None:
-    # Mocked research_agent output — same 4 crops used in filters.py's
-    # __main__ test — so this exercises budget_filter -> profit_ranker ->
-    # orchestrator_agent with exactly one real API call (the orchestrator
-    # synthesis), instead of burning quota on a real research_agent run.
+    """Manual smoke test for orchestrator_agent in isolation: feeds it
+    pre-computed (mocked, not LLM-generated) ranked crops and prints the
+    resulting summary text, to verify the synthesis step works without
+    spending a research_agent call or running the security guards.
+
+    Mocked research_agent output — same 4 crops used in filters.py's
+    __main__ test — so this exercises budget_filter -> profit_ranker ->
+    orchestrator_agent with exactly one real API call (the orchestrator
+    synthesis), instead of burning quota on a real research_agent run.
+    """
     mocked_crops = [
         {
             "crop": "Tomato",

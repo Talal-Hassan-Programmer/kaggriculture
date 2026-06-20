@@ -1,3 +1,8 @@
+# Single responsibility: expose agents/orchestrator.py's two entry points
+# as MCP tools, so any MCP-compatible client/LLM can call the pipeline
+# directly. Like app.py, holds no pipeline logic of its own — each tool is
+# a thin wrapper that delegates to run_pipeline() or run_pipeline_from_query().
+
 from mcp.server.fastmcp import FastMCP
 
 from agents.orchestrator import run_pipeline, run_pipeline_from_query
@@ -54,9 +59,26 @@ async def get_farm_recommendation(
 @mcp.tool()
 async def get_farm_recommendation_from_text(query: str) -> dict:
     """Get a farm feasibility recommendation from a free-text description.
+
+    Runs the same pipeline as get_farm_recommendation, but starts from a
+    single unstructured string instead of separate fields. The query is
+    parsed by intake_agent, which checks it for safety and extracts
+    location/budget/land_area/target_profit/rent_cost in one step (this
+    tool does not call input_guard_agent — intake_agent's check covers it).
+
     Example: "I have $5000 and 2 acres in Qatar, want something profitable, target $1000 profit."
-    If information is missing, the response will ask a follow-up question instead of
-    a recommendation — ask the user and call this tool again with the combined info.
+
+    Args:
+        query: A free-text description of the farmer's situation. Should
+            mention a location, budget, land area, and target profit;
+            rent cost is optional and defaults to 0 if not mentioned.
+
+    Returns:
+        Same shape as get_farm_recommendation on success or budget failure.
+        If required information is missing from `query`, returns
+        {"feasible": False, "incomplete": True, "reason": str} where
+        `reason` is a follow-up question — ask the user and call this tool
+        again with the combined original query and their answer.
     """
     return await run_pipeline_from_query(query)
 

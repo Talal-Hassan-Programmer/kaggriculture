@@ -1,3 +1,9 @@
+# Single responsibility: CLI entry point for manual end-to-end testing of
+# the real pipeline (no mocks). Two modes, both calling agents/orchestrator.py
+# directly rather than going through app.py or mcp_server.py:
+#   - default (`python main.py`): runs a hardcoded structured demo case.
+#   - `--interactive`: runs the free-text intake flow with live user input.
+
 import asyncio
 import json
 import sys
@@ -7,6 +13,13 @@ from agents.orchestrator import run_pipeline
 
 
 async def _main() -> None:
+    """Real (non-mocked) demo run: calls run_pipeline() with a hardcoded
+    location/budget/land_area/target_profit and prints both the raw
+    research_agent output and the full pipeline result, so a real end-to-end
+    run can be eyeballed without writing a test harness. Budget is set high
+    enough (2,000,000 QAR) that at least one crop survives budget_filter,
+    so the demo shows a real ranked recommendation rather than an
+    infeasible-budget result."""
     print("=" * 60)
     print("CASE A: valid location")
     print("=" * 60)
