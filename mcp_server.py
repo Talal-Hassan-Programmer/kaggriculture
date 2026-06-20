@@ -1,6 +1,6 @@
 from mcp.server.fastmcp import FastMCP
 
-from agents.orchestrator import run_pipeline
+from agents.orchestrator import run_pipeline, run_pipeline_from_query
 
 mcp = FastMCP("kaggriculture")
 
@@ -49,6 +49,16 @@ async def get_farm_recommendation(
         "reason": str}.
     """
     return await run_pipeline(location, budget, land_area, target_profit, rent_cost)
+
+
+@mcp.tool()
+async def get_farm_recommendation_from_text(query: str) -> dict:
+    """Get a farm feasibility recommendation from a free-text description.
+    Example: "I have $5000 and 2 acres in Qatar, want something profitable, target $1000 profit."
+    If information is missing, the response will ask a follow-up question instead of
+    a recommendation — ask the user and call this tool again with the combined info.
+    """
+    return await run_pipeline_from_query(query)
 
 
 if __name__ == "__main__":

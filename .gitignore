@@ -157,6 +157,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# ADK local session DB (created by `adk web`)
+agents/.adk/
+
 # Spyder project settings
 .spyderproject
 .spyproject

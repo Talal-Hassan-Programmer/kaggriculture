@@ -13,6 +13,7 @@ from google.adk.agents import LlmAgent
 from google.adk.runners import InMemoryRunner
 
 from agents.input_guard_agent import check_input
+from agents.intake_agent import parse_query
 from agents.research_agent import research_agent
 from filters import budget_filter, profit_ranker
 
@@ -84,7 +85,7 @@ async def _call_agent_for_text(agent: LlmAgent, message: str, session_id: str) -
     return ""
 
 
-async def run_pipeline(
+async def _run_core_pipeline(
     location: str,
     budget: float,
     land_area: float,
@@ -94,16 +95,11 @@ async def run_pipeline(
 ) -> dict:
     # Fail fast on invalid input before spending any API calls — land_area
     # feeds directly into budget_filter/profit_ranker's arithmetic, so a
-    # non-positive value is never recoverable downstream.
+    # non-positive value is never recoverable downstream. Lives here (rather
+    # than in run_pipeline) so it protects both call paths: the structured
+    # run_pipeline() and the free-text run_pipeline_from_query().
     if land_area <= 0:
         return {"feasible": False, "error": "land_area must be greater than 0"}
-
-    # Run the input guard before anything else costs an API call. research_agent
-    # and orchestrator_agent are both paid LLM calls; if `location` is rejected
-    # here, we return immediately and never spend quota on either of them.
-    guard_result = await check_input(location)
-    if not guard_result["allowed"]:
-        return {"feasible": False, "rejected": True, "reason": guard_result["reason"]}
 
     crops = None
     error_feedback = None
@@ -172,6 +168,58 @@ async def run_pipeline(
         "summary": summary,
         "retries_used": retries_used,
     }
+
+
+async def run_pipeline(
+    location: str,
+    budget: float,
+    land_area: float,
+    target_profit: float,
+    rent_cost: float = 0,
+    max_retries: int = 2,
+) -> dict:
+    # Run the input guard before anything else costs an API call. research_agent
+    # and orchestrator_agent are both paid LLM calls; if `location` is rejected
+    # here, we return immediately and never spend quota on either of them.
+    guard_result = await check_input(location)
+    if not guard_result["allowed"]:
+        return {"feasible": False, "rejected": True, "reason": guard_result["reason"]}
+
+    return await _run_core_pipeline(
+        location, budget, land_area, target_profit, rent_cost, max_retries
+    )
+
+
+async def run_pipeline_from_query(query: str, max_retries: int = 2) -> dict:
+    """Single-shot wrapper around _run_core_pipeline() that accepts a
+    free-text query instead of pre-parsed fields. Calls parse_query() exactly
+    once — any back-and-forth needed to fill in missing fields belongs in the
+    caller (e.g. a CLI loop), not here.
+
+    Calls _run_core_pipeline() directly rather than run_pipeline(), skipping
+    input_guard_agent entirely — intake_agent already performed the same
+    security check on this free-text path, so running input_guard_agent too
+    would be a redundant API call against the same untrusted text.
+    """
+    intake_result = await parse_query(query)
+
+    if intake_result["status"] != "allowed":
+        return {
+            "feasible": False,
+            "rejected": intake_result["status"] == "rejected",
+            "incomplete": intake_result["status"] == "incomplete",
+            "reason": intake_result["reason"],
+        }
+
+    fields = intake_result["fields"]
+    return await _run_core_pipeline(
+        location=fields["location"],
+        budget=fields["budget"],
+        land_area=fields["land_area"],
+        target_profit=fields["target_profit"],
+        rent_cost=fields.get("rent_cost", 0),
+        max_retries=max_retries,
+    )
 
 
 async def _main() -> None:
