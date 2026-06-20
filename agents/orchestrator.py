@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from google.adk.agents import LlmAgent
 from google.adk.runners import InMemoryRunner
 
+from agents.input_guard_agent import check_input
 from agents.research_agent import research_agent
 from filters import budget_filter, profit_ranker
 
@@ -91,6 +92,13 @@ async def run_pipeline(
     rent_cost: float = 0,
     max_retries: int = 2,
 ) -> dict:
+    # Run the input guard before anything else costs an API call. research_agent
+    # and orchestrator_agent are both paid LLM calls; if `location` is rejected
+    # here, we return immediately and never spend quota on either of them.
+    guard_result = await check_input(location)
+    if not guard_result["allowed"]:
+        return {"feasible": False, "rejected": True, "reason": guard_result["reason"]}
+
     crops = None
     error_feedback = None
     retries_used = 0
