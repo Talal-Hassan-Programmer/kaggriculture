@@ -12,7 +12,7 @@ async def _main() -> None:
     print("=" * 60)
     valid_result = await run_pipeline(
         location="Al Rayyan, Qatar",
-        budget=500000,
+        budget=2000000,
         land_area=10,
         target_profit=10000,
         rent_cost=0,
