@@ -92,6 +92,12 @@ async def run_pipeline(
     rent_cost: float = 0,
     max_retries: int = 2,
 ) -> dict:
+    # Fail fast on invalid input before spending any API calls — land_area
+    # feeds directly into budget_filter/profit_ranker's arithmetic, so a
+    # non-positive value is never recoverable downstream.
+    if land_area <= 0:
+        return {"feasible": False, "error": "land_area must be greater than 0"}
+
     # Run the input guard before anything else costs an API call. research_agent
     # and orchestrator_agent are both paid LLM calls; if `location` is rejected
     # here, we return immediately and never spend quota on either of them.

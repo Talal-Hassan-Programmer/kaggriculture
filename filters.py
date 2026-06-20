@@ -45,13 +45,17 @@ def profit_ranker(
         total_cost = _total_cost(crop, land_area, rent_cost)
         revenue = crop["expected_yield_per_unit_area"] * land_area * crop["market_price_per_unit"]
         profit = revenue - total_cost
+        # A free crop (total_cost == 0) has no meaningful ratio to divide by;
+        # treat any positive profit as an infinite margin rather than letting
+        # a bare ZeroDivisionError crash the whole ranking pass.
+        profit_margin = float("inf") if total_cost == 0 else profit / total_cost
         ranked.append(
             {
                 **crop,
                 "revenue": revenue,
                 "total_cost": total_cost,
                 "profit": profit,
-                "profit_margin": profit / total_cost,
+                "profit_margin": profit_margin,
             }
         )
 
