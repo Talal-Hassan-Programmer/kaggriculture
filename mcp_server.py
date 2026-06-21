@@ -36,10 +36,14 @@ async def get_farm_recommendation(
     Args:
         location: A real-world place name to research crops for, e.g.
             "Al Rayyan, Qatar" or just "Qatar".
-        budget: Total amount the farmer is willing to spend, in the local
-            currency the research turns up for that crop/region (e.g. QAR).
-        land_area: Amount of land available, in whatever unit_area the
-            research data uses (e.g. hectares, acres, dunams).
+        budget: Total amount the farmer is willing to spend, in whichever
+            currency is standard for real market transactions in that
+            region (e.g. QAR for Qatar) — research_agent is instructed to
+            report all crops in one consistent currency per response, but
+            which currency that will be is not knowable before the call.
+        land_area: Amount of land available, in hectares (e.g. 2.5 for
+            two and a half hectares). research_agent is instructed to
+            normalize all crop data to hectares regardless of source units.
         target_profit: The profit the farmer hopes to clear, in the same
             currency as budget, used only to phrase the recommendation
             (it does not affect filtering or ranking).

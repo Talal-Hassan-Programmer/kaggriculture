@@ -46,9 +46,18 @@ research_agent = LlmAgent(
         '    "expected_yield_per_unit_area": number,\n'
         '    "market_price_per_unit": number,\n'
         '    "currency": string,\n'
-        '    "unit_area": string  // e.g. "dunam", "acre", "hectare"\n'
+        '    "unit_area": string\n'
         "  }\n"
         "]\n\n"
+        "CONSISTENCY RULES (critical — downstream code depends on these):\n"
+        "- Use exactly ONE currency for every crop in this response. Pick "
+        "whichever currency is standard for real market transactions in "
+        "this region (e.g. QAR for Qatar, USD for the US). Never mix "
+        "currencies across crops.\n"
+        "- Always set unit_area to exactly \"hectare\" for every crop, "
+        "regardless of what unit your source data uses. If a source "
+        "quotes dunams or acres, convert before reporting "
+        "(1 hectare = 10 dunams = 2.471 acres).\n\n"
         "Respond with the JSON array and nothing else."
     ),
 
