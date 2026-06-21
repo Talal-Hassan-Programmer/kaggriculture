@@ -145,8 +145,8 @@ kaggriculture/
 
 ## Video & Writeup
 
-<!-- TODO: link YouTube video once published -->
-<!-- TODO: link Kaggle writeup once published -->
+[![Watch the demo video](https://img.youtube.com/vi/j1wjrFhD-Tc/maxresdefault.jpg)](https://youtu.be/j1wjrFhD-Tc)
+**Kaggle writeup:** https://www.kaggle.com/competitions/vibecoding-agents-capstone-project/writeups/kaggriculture-a-multi-agent-farm-feasibility-advi
 
 ## License
 
