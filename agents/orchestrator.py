@@ -120,6 +120,7 @@ async def _run_core_pipeline(
     budget: float,
     land_area: float,
     target_profit: float,
+    currency: str,
     rent_cost: float = 0,
     max_retries: int = 2,
 ) -> dict:
@@ -149,10 +150,10 @@ async def _run_core_pipeline(
         retries_used = attempt
 
         message = (
-            location
+            f"{location}\n\nReport all prices in {currency}."
             if error_feedback is None
             else (
-                f"{location}\n\n"
+                f"{location}\n\nReport all prices in {currency}.\n\n"
                 f"Your previous response was invalid: {error_feedback}\n"
                 "Respond again with ONLY a valid JSON array matching the required schema."
             )
@@ -215,6 +216,7 @@ async def run_pipeline(
     budget: float,
     land_area: float,
     target_profit: float,
+    currency: str,
     rent_cost: float = 0,
     max_retries: int = 2,
 ) -> dict:
@@ -235,7 +237,7 @@ async def run_pipeline(
         return {"feasible": False, "rejected": True, "reason": guard_result["reason"]}
 
     return await _run_core_pipeline(
-        location, budget, land_area, target_profit, rent_cost, max_retries
+        location, budget, land_area, target_profit, currency, rent_cost, max_retries
     )
 
 
@@ -266,7 +268,7 @@ async def run_pipeline_from_query(query: str, max_retries: int = 2) -> dict:
         }
 
     fields = intake_result["fields"]
-    required = ("location", "budget", "land_area", "target_profit")
+    required = ("location", "budget", "currency", "land_area", "target_profit")
     if not fields or not all(k in fields and fields[k] is not None for k in required):
         return {
             "feasible": False,
@@ -280,6 +282,7 @@ async def run_pipeline_from_query(query: str, max_retries: int = 2) -> dict:
         budget=fields["budget"],
         land_area=fields["land_area"],
         target_profit=fields["target_profit"],
+        currency=fields["currency"],
         rent_cost=fields.get("rent_cost", 0),
         max_retries=max_retries,
     )

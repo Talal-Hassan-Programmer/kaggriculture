@@ -28,6 +28,7 @@ async def _main() -> None:
         budget=2000000,
         land_area=10,
         target_profit=10000,
+        currency="QAR",
         rent_cost=0,
     )
 
@@ -76,6 +77,7 @@ async def run_interactive() -> None:
         budget=fields["budget"],
         land_area=fields["land_area"],
         target_profit=fields["target_profit"],
+        currency=fields["currency"],
         rent_cost=fields.get("rent_cost", 0),
     )
 

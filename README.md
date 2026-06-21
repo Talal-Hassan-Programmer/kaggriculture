@@ -79,7 +79,8 @@ input_guard_agent (LLM)            intake_agent (LLM)
 | Input | Required | Notes |
 |---|---|---|
 | Location | Yes | Country + region/state — drives climate fit and market prices |
-| Budget | Yes | Total capital — currency is whatever research_agent finds standard for that region; not yet known before the call |
+| Budget | Yes | Total capital, in the currency specified by `currency` |
+| Currency | Yes | e.g. "QAR", "USD" — research_agent is instructed to report every crop's prices in exactly this currency |
 | Land area | Yes | In hectares |
 | Target profit | Yes | Minimum acceptable return, same currency as budget |
 | Rent cost | No | Only if land is rented; defaults to 0 |
@@ -92,7 +93,7 @@ input_guard_agent (LLM)            intake_agent (LLM)
 
 - **Math is never done by an LLM.** `budget_filter()` and `profit_ranker()` are pure Python. LLMs are unreliable at arithmetic — every number the user sees was computed deterministically, not generated.
 - **The orchestrator synthesizes, it doesn't recalculate.** It receives pre-ranked, pre-computed data and writes prose around it. Verified by exact-match testing against the filter/ranker output.
-- **Currency and unit consistency are enforced by instruction**, not code — `research_agent` is prompted to use one consistent currency per response and to always normalize `unit_area` to hectares, converting from whatever the source data uses. The caller is expected to supply `land_area` in hectares to match.
+- **Currency and unit consistency are enforced by instruction**, not code — the caller supplies an explicit `currency` field, and `research_agent` is prompted to convert every crop's prices to exactly that currency, plus always normalize `unit_area` to hectares. The caller supplies `land_area` in hectares and `budget`/`target_profit` in `currency` to match.
 
 ## Setup
 
@@ -138,7 +139,7 @@ kaggriculture/
 ## Limitations / Known Risks
 
 - `land_area` must be supplied in hectares — `research_agent` is instructed to normalize to hectares, but nothing checks the caller actually sent hectares; a caller assuming acres or dunams gets silently wrong math.
-- Currency has no input field and can't be predicted before calling — `research_agent` is instructed to stay internally consistent across crops in one response, but there's no code-level check that this matches the currency the caller assumed for `budget`.
+- Currency conversion relies on `research_agent` doing a live exchange-rate lookup via Google Search whenever its source data is in a different currency than requested — like all live-search data, this can vary run to run and hasn't been spot-checked against a reference exchange rate.
 - Market prices come from live Google Search grounding — the same query can return different numbers run to run as underlying search results change.
 - Demo/testing has been concentrated on one region (Al Rayyan, Qatar); other regions are untested in practice, though the pipeline is region-agnostic by design.
 

@@ -20,6 +20,7 @@ class StructuredRequest(BaseModel):
     budget: float
     land_area: float
     target_profit: float
+    currency: str
     rent_cost: float = 0
 
 
@@ -43,7 +44,7 @@ async def recommend(req: StructuredRequest) -> dict:
     """Structured entry point: passes pre-parsed fields straight to
     run_pipeline(), which guards `location` via input_guard_agent before
     running research_agent/orchestrator_agent."""
-    return await run_pipeline(req.location, req.budget, req.land_area, req.target_profit, req.rent_cost)
+    return await run_pipeline(req.location, req.budget, req.land_area, req.target_profit, req.currency, req.rent_cost)
 
 
 @app.post("/recommend/text")
