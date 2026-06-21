@@ -63,7 +63,7 @@ input_guard_agent (LLM)            intake_agent (LLM)
 | Concept | Where |
 |---|---|
 | Multi-agent system (ADK) | 4 distinct `LlmAgent`s — `input_guard_agent`, `intake_agent`, `research_agent`, `orchestrator_agent` — each single-purpose, wired through one shared core pipeline |
-| Security | LLM firewall pattern (Day 4): every entry point is gated by a guard agent before any other agent runs. Verified against a deliberate prompt-injection input (rejected before `research_agent`/`orchestrator_agent` ever run) and an incomplete query, where `intake_agent` asked a follow-up question instead of guessing the missing budget/land area/target profit |
+| Security | LLM firewall pattern (Day 4): every entry point is gated by a guard agent before any other agent runs. Verified against a deliberate prompt-injection input (rejected before `research_agent`/`orchestrator_agent` ever run) and an incomplete query, where `intake_agent` asked a follow-up question instead of guessing the missing budget/currency/land area/target profit |
 | MCP Server | `mcp_server.py` (FastMCP) — two tools, `get_farm_recommendation` and `get_farm_recommendation_from_text`, served over `streamable-http` (locally and as the deployed remote MCP service) |
 | Deployability | Two independent Cloud Run services — REST API and remote MCP — both live |
 
