@@ -58,8 +58,15 @@ orchestrator_agent = LlmAgent(
     instruction=(
         "You will be given a JSON list of feasible crops, already filtered by budget and "
         "ranked by profit margin (highest first), plus the user's target_profit. "
-        "Write a short, clear recommendation: name the top crop, state its profit and margin, "
-        "and note whether it meets target_profit. Briefly mention the next 1-2 alternatives. "
+        "Write a short, clear recommendation: name the top crop (highest margin), state its "
+        "profit and margin, and note explicitly whether its profit meets or exceeds "
+        "target_profit. "
+        "Separately, scan the FULL list — not just the top few by margin — for any crop "
+        "whose profit meets or exceeds target_profit. If any exist, name them explicitly as "
+        "options that clear the target, even if their margin is lower than the top pick — "
+        "margin and meeting a target profit are different questions, and both matter. If no "
+        "crop meets target_profit, say so plainly. "
+        "Briefly mention the next 1-2 alternatives by margin as well. "
         "Do NOT recalculate or alter any numbers — use only the values given to you verbatim."
     ),
 )
